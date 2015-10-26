@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    
+
     angular.module('wavesurfer.angular', [])
         .filter('hms', function () {
             return function (str) {
@@ -24,7 +24,10 @@
                 restrict : 'AE',
                 scope    : {
                     url     : '=',
-                    options : '='
+                    options : '=',
+                    analyserinit: '=',
+                    stopcb: '=',
+                    ready: '='
                 },
                 template : '<div class="row">' +
                                 '<div class="col-xs-12 wave-control-wrap">' +
@@ -73,28 +76,48 @@
                     scope.wavesurfer.init(scope.options);
                     scope.updateSlider();
                     scope.wavesurfer.load(scope.url);
+
+
                     scope.moment = "0";
                     // on ready
                     scope.wavesurfer.on('ready', function () {
                         scope.length = Math.floor(scope.wavesurfer.getDuration()).toString();
                         $interval(function () {
                             scope.moment = Math.floor(scope.wavesurfer.getCurrentTime()).toString();
-                        }, parseFloat(scope.playrate) * 1000); 
+                        }, parseFloat(scope.playrate) * 1000);
+                        if(scope.ready) {
+                          scope.ready(scope.playpause);
+                        }
                     });
                     // what to be done on finish playing
                     scope.wavesurfer.on('finish', function () {
                         scope.playing = false;
+                        scope.stopcb();
                     });
                     // play/pause action
                     scope.playpause = function () {
+                        if(!scope.playing && scope.analyserinit) {
+                          console.log('analyser init');
+                          if(scope.analyser) {
+                            scope.analyserinit(scope.analyser);
+                          } else {
+                            scope.analyser = scope.wavesurfer.backend.ac.createAnalyser();
+                            scope.wavesurfer.backend.setFilter(scope.analyser);
+                            scope.analyserinit(scope.analyser);
+                          }
+                        }
+
+                        if(scope.playing && scope.stopcb) {
+                          scope.stopcb();
+                        }
                         scope.wavesurfer.playPause();
                         scope.playing = !scope.playing;
                     };
-                    
+
                     scope.ff = function () {
                         scope.wavesurfer.skipForward();
                     };
-                    
+
                     scope.bw = function () {
                         scope.wavesurfer.skipBackward();
                     };
